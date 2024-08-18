@@ -1,6 +1,10 @@
 import jwt from "@elysiajs/jwt";
 import Elysia, { t } from "elysia";
 import User from "../models/user";
+import { AuthMiddleware } from "../libs/auth.middleware";
+import { FindUser, SaveUser } from "../services/user.service";
+import { GenerateToken, VerifyToken } from "../libs/utils";
+import { StatusCodes } from "../types/http.status";
 
 export const AuthController = new Elysia().group("/user", (app) =>
   app
@@ -10,17 +14,12 @@ export const AuthController = new Elysia().group("/user", (app) =>
       async (ctx) => {
         try {
           console.log(ctx);
-          const newUser = new User({
-            name: ctx.body.name,
-            email: ctx.body.email,
-            password: ctx.body.password,
-          });
-          await newUser.save();
-          const token = await ctx.jwt.sign({
-            name: ctx.body.name,
-            email: ctx.body.email,
-            password: ctx.body.password,
-          });
+          const saveUser = await SaveUser(
+            ctx.body.name,
+            ctx.body.email,
+            ctx.body.password
+          );
+          const token = await GenerateToken(ctx);
           return { success: true, token };
         } catch (err) {
           return { success: false, error: err };
@@ -38,19 +37,15 @@ export const AuthController = new Elysia().group("/user", (app) =>
       "/login",
       async (ctx) => {
         try {
-          const finduser = await User.findOne({
-            email: ctx.body.email,
-            password: ctx.body.password,
-          });
-          if (finduser) {
-            const token = await ctx.jwt.sign({
-              name: finduser.name!,
-              email: ctx.body.email,
-              password: ctx.body.password,
-            });
+          const user = await FindUser(ctx.body.email, ctx.body.password);
+          if (user!.data) {
+            const token = await GenerateToken(ctx);
             return { success: true, token };
+          } else if (user!.status === StatusCodes.UNAUTHORIZED) {
+            ctx.set.status = StatusCodes.UNAUTHORIZED;
+            return { success: false, message: "Password Mismatch" };
           } else {
-            ctx.set.status = 404;
+            ctx.set.status = StatusCodes.NOT_FOUND;
             return { success: false, message: "User not found" };
           }
         } catch (err) {
@@ -65,17 +60,13 @@ export const AuthController = new Elysia().group("/user", (app) =>
       }
     )
     .onBeforeHandle((ctx) => {
-      if (!ctx.headers.authorization) {
-        ctx.set.status = 401;
-        return { success: false };
-      }
+      AuthMiddleware(ctx);
     })
-    .post("/profile", async (ctx) => {
+    .get("/profile", async (ctx) => {
       const token = ctx.headers.authorization;
-      const verify = await ctx.jwt.verify(token);
-      console.log(verify);
-      if (verify) {
-        return { success: true, profile: verify };
+      const userData = await VerifyToken(ctx, token);
+      if (userData) {
+        return { success: true, profile: userData };
       } else {
         ctx.set.status = 401;
         return { success: false };
