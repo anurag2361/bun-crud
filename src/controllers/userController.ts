@@ -1,6 +1,5 @@
 import jwt from "@elysiajs/jwt";
 import Elysia, { t } from "elysia";
-import User from "../models/user";
 import { AuthMiddleware } from "../libs/auth.middleware";
 import { FindUser, SaveUser } from "../services/user.service";
 import { GenerateToken, VerifyToken } from "../libs/utils";
@@ -68,7 +67,7 @@ export const AuthController = new Elysia().group("/user", (app) =>
       if (userData) {
         return { success: true, profile: userData };
       } else {
-        ctx.set.status = 401;
+        ctx.set.status = StatusCodes.UNAUTHORIZED;
         return { success: false };
       }
     })
