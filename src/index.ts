@@ -1,7 +1,7 @@
 import { Elysia } from "elysia";
 import { AuthController } from "./controllers/userController";
 import swagger from "@elysiajs/swagger";
-import { logger } from "@grotto/logysia";
+//import { logger } from "@grotto/logysia";
 import { helmet } from "elysia-helmet";
 
 import cors from "@elysiajs/cors";
@@ -27,7 +27,7 @@ const app = new Elysia({ name })
       path: "/docs",
     })
   )
-  .use(logger())
+  //.use(logger())
   .use(HealthController)
   .use(AuthController)
   .listen(+port);
